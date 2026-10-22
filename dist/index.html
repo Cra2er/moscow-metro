@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Московское метро в другом масштабе: пассажиропоток, возраст, глубина. Интерактивная схема на D3.js.">
+  <meta name="theme-color" content="#f7f7f5">
+  <title>Moscow Metro — игра с масштабом</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='17' fill='%23f6d44c'/%3E%3Cpath d='M12 46V18h7l13 17 13-17h7v28h-9V32L32 47 21 32v14' fill='%23232323'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="vendor/d3.v7.min.js"></script>
+  <script defer src="data.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Moscow Metro, главная"><span class="brand-mark" aria-hidden="true">м</span><span>Moscow Metro<span class="brand-sub">Игра с масштабом</span></span></a>
+    <div class="top-note"><span class="tiny-circle"></span> Москва · схема Яндекс Метро</div>
+    <button class="quiet" id="sources-open" type="button">Данные и источники <span aria-hidden="true">↗</span></button>
+  </header>
+  <main>
+    <aside class="controls" aria-label="Параметры визуализации">
+      <div class="eyebrow">СМОТРИ ПО-ДРУГОМУ</div>
+      <h1>У каждой станции<br>свой масштаб.</h1>
+      <section class="control-section">
+        <label for="size-metric"><span class="control-symbol" aria-hidden="true">◯</span> Размер</label>
+        <select id="size-metric"></select>
+        <div class="direction" role="group" aria-label="Зависимость размера">
+          <button type="button" data-channel="size" data-inverse="false">Прямо <span>×</span></button>
+          <button type="button" data-channel="size" data-inverse="true">Обратно <span>1/×</span></button>
+        </div>
+        <div class="hint" id="size-hint">Площадь кружка пропорциональна показателю</div>
+      </section>
+      <section class="control-section">
+        <label for="color-metric"><span class="control-symbol filled" aria-hidden="true">●</span> Светлота</label>
+        <select id="color-metric"></select>
+        <div class="direction" role="group" aria-label="Зависимость цвета">
+          <button type="button" data-channel="color" data-inverse="false">Прямо <span>×</span></button>
+          <button type="button" data-channel="color" data-inverse="true">Обратно <span>1/×</span></button>
+        </div>
+        <div class="hint" id="color-hint">Больше значение — темнее станция</div>
+      </section>
+      <section class="control-section period-section" id="period-section">
+        <label for="period">Пассажиропоток за</label>
+        <select id="period"></select>
+      </section>
+      <section class="control-section amplitude-section">
+        <label for="amplitude">Размах кружков <output id="amplitude-value" for="amplitude">100%</output></label>
+        <input type="range" id="amplitude" min="50" max="220" step="5" value="100">
+      </section>
+      <label class="label-switch"><input type="checkbox" id="labels" checked><span>Названия станций</span></label>
+      <div class="coverage" id="coverage" aria-live="polite"></div>
+    </aside>
+    <section class="map-area" aria-label="Интерактивная схема московского метро">
+      <svg id="map" role="img" aria-label="Схема метро. Размер и светлота станций зависят от выбранных показателей."><title>Moscow Metro</title></svg>
+      <div class="map-caption"><span class="map-caption-dot"></span><span id="map-caption">Пассажиропоток × Возраст</span></div>
+      <div class="zoom-controls" aria-label="Масштаб схемы"><button id="zoom-in" aria-label="Приблизить">+</button><button id="zoom-out" aria-label="Отдалить">−</button><button id="fit" aria-label="Показать всю схему" title="Вся схема">⤢</button></div>
+      <div class="legend" id="legend" aria-label="Легенда светлоты"><span id="legend-title"></span><div class="gradient"></div><div class="legend-values"><span id="legend-start"></span><span id="legend-end"></span></div></div>
+      <div class="map-help">Тяни схему · крути колёсико · нажми станцию</div>
+      <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+      <section id="station-detail" class="station-detail" aria-label="Выбранная станция" hidden></section>
+    </section>
+  </main>
+  <dialog id="sources">
+    <div class="dialog-heading"><h2>Данные и источники</h2><button type="button" id="sources-close" class="close" aria-label="Закрыть">×</button></div>
+    <p><a href="https://yandex.ru/metro/moscow" target="_blank" rel="noopener">Яндекс Метро</a> — расположение станций, геометрия линий и подписи. Снимок схемы: 23 октября 2026, версия fa5d293. Это самостоятельная визуализация, не продукт Яндекса.</p>
+    <p><a href="https://data.mos.ru/opendata/62743" target="_blank" rel="noopener">Открытые данные Москвы, набор 62743</a> — входы и выходы через турникеты за выбранный квартал. Выпуск 36, 23 октября 2026. Последний период — III квартал 2026. Внутренние пересадки не учитываются. Входы + выходы — число проходов, не уникальных пассажиров.</p>
+    <p><a href="https://ru.wikipedia.org/wiki/Список_станций_Московского_метрополитена" target="_blank" rel="noopener">Список станций Московского метрополитена</a> — даты открытия и глубина, снимок 23 октября 2026. Значения с пометкой «нет в источнике» исключены. Возраст рассчитан на дату снимка. Для наземных и надземных станций глубина равна 0.</p>
+    <p>До центра — расстояние по прямой до станции «Охотный Ряд» по координатам Яндекс Метро. Станции сопоставлены по названию и линии; одноимённые станции разных линий не объединены.</p>
+    <p>Прямая шкала: площадь кружка и темнота пропорциональны <b>x</b>. Обратная: <b>1/x</b>. Нулевые значения не участвуют в обратной шкале. Минимальный видимый кружок — 2,5 единицы схемы; самые маленькие значения могут достигать этого порога.</p>
+    <p>Нет значения размера — маленький кружок; нет значения светлоты — белая заливка. Пунктирный контур означает пропуск хотя бы по одному выбранному показателю. Пропуски не заменены нулями. Покрытие: возраст — 309 из 445 станций; глубина — 277; пассажиропоток за III квартал 2026 — 308. На МЦД возраст, глубина и пассажиропоток не заполнены.</p>
+    <p class="credits">Визуализация: <a href="https://d3js.org/" target="_blank" rel="noopener">D3.js 7.9.0</a>, ISC. Справочник Wikipedia — CC BY-SA 4.0. Названия и схема Яндекс Метро принадлежат их правообладателям.</p>
+  </dialog>
+  <noscript>Для интерактивной схемы включите JavaScript.</noscript>
+</body>
+</html>
